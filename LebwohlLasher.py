@@ -173,13 +173,12 @@ def all_energy(arr,nmax):
 	Returns:
 	  enall (float) = reduced energy of lattice.
     """
-    enall = 0.0
-    for i in range(nmax):
-        for j in range(nmax):
-            enall += one_energy(arr,i,j,nmax)
+    indices = np.arange(nmax)
+    i, j = np.meshgrid(indices, indices)
+    enall = np.sum(one_energy(arr, i, j, nmax))
     return enall
 #=======================================================================
-def get_order(arr,nmax):
+def get_order(arr,nmax) :
     """
     Arguments:
 	  arr (float(nmax,nmax)) = array that contains lattice data;
