@@ -174,7 +174,7 @@ def all_energy(arr,nmax):
 	  enall (float) = reduced energy of lattice.
     """
     indices = np.arange(nmax)
-    i, j = np.meshgrid(indices, indices)
+    i, j = np.meshgrid(indices, indices, indexing='ij')
     enall = np.sum(one_energy(arr, i, j, nmax))
     return enall
 #=======================================================================
@@ -190,20 +190,21 @@ def get_order(arr,nmax) :
 	Returns:
 	  max(eigenvalues(Qab)) (float) = order parameter for lattice.
     """
-    Qab = np.zeros((3,3))
-    delta = np.eye(3,3)
-    #
-    # Generate a 3D unit vector for each cell (i,j) and
-    # put it in a (3,i,j) array.
-    #
-    lab = np.vstack((np.cos(arr),np.sin(arr),np.zeros_like(arr))).reshape(3,nmax,nmax)
+    Qab = np.zeros((3, 3))
+    delta = np.eye(3)
+
+    indices = np.arange(nmax)
+    i, j = np.meshgrid(indices, indices, indexing='ij')
+    
+    lab = np.vstack((np.cos(arr), np.sin(arr), np.zeros_like(arr))).reshape(3, nmax, nmax)
+    
     for a in range(3):
         for b in range(3):
-            for i in range(nmax):
-                for j in range(nmax):
-                    Qab[a,b] += 3*lab[a,i,j]*lab[b,i,j] - delta[a,b]
-    Qab = Qab/(2*nmax*nmax)
-    eigenvalues,eigenvectors = np.linalg.eig(Qab)
+            Qab[a, b] = np.sum(3 * lab[a, i, j] * lab[b, i, j] - delta[a, b])
+    
+    Qab /= (2 * nmax * nmax)
+    eigenvalues, eigenvectors = np.linalg.eig(Qab)
+    
     return eigenvalues.max()
 #=======================================================================
 def MC_step(arr,Ts,nmax):
