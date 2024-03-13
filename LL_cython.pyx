@@ -131,6 +131,7 @@ def savedat(arr,nsteps,Ts,runtime,ratio,energy,order,nmax):
         print("   {:05d}    {:6.4f} {:12.4f}  {:6.4f} ".format(i,ratio[i],energy[i],order[i]),file=FileOut)
     FileOut.close()
 #=======================================================================
+from libc.math cimport cos
 def one_energy(double[:, ::1] arr, int ix, int iy, int nmax):
     """
     Arguments:
@@ -155,13 +156,13 @@ def one_energy(double[:, ::1] arr, int ix, int iy, int nmax):
     # Add together the 4 neighbour contributions to the energy
     cdef double ang
     ang = arr[ix, iy] - arr[ixp, iy]
-    en += 0.5 * (1.0 - 3.0 * np.cos(ang) ** 2)
+    en += 0.5 * (1.0 - 3.0 * cos(ang) ** 2)
     ang = arr[ix, iy] - arr[ixm, iy]
-    en += 0.5 * (1.0 - 3.0 * np.cos(ang) ** 2)
+    en += 0.5 * (1.0 - 3.0 * cos(ang) ** 2)
     ang = arr[ix, iy] - arr[ix, iyp]
-    en += 0.5 * (1.0 - 3.0 * np.cos(ang) ** 2)
+    en += 0.5 * (1.0 - 3.0 * cos(ang) ** 2)
     ang = arr[ix, iy] - arr[ix, iym]
-    en += 0.5 * (1.0 - 3.0 * np.cos(ang) ** 2)
+    en += 0.5 * (1.0 - 3.0 * cos(ang) ** 2)
 
     return en
 #=======================================================================
@@ -183,6 +184,7 @@ def all_energy(double[:, ::1] arr, int nmax):
             enall += one_energy(arr, i, j, nmax)
     return enall
 #=======================================================================
+from libc.math cimport sin
 def get_order(double[:, ::1] arr, int nmax):
     """
     Arguments:
@@ -195,22 +197,30 @@ def get_order(double[:, ::1] arr, int nmax):
     Returns:
         max(eigenvalues(Qab)) (float): order parameter for lattice.
     """
-    cdef np.ndarray[np.float64_t, ndim=2] Qab = np.zeros((3, 3), dtype=np.float64)
-    cdef np.ndarray[np.float64_t, ndim=2] delta = np.eye(3, dtype=np.float64)
-    cdef np.ndarray[np.float64_t, ndim=3] lab = np.vstack((np.cos(arr), np.sin(arr), np.zeros_like(arr))).reshape(3, nmax, nmax)
-    cdef np.ndarray[np.float64_t, ndim=1] eigenvalues
-    cdef np.ndarray[np.float64_t, ndim=2] eigenvectors
+    cdef double[:,:] Qab = np.zeros((3, 3), dtype=np.float64)
+    cdef double[:,:] delta = np.eye(3, dtype=np.float64)
+    cdef double[:,:,:] lab = np.zeros((3, nmax, nmax), dtype=np.float64)
+    cdef double[:] eigenvalues
+    cdef double[:, :] eigenvectors
+    cdef int a, b, i, j
+
+    for i in range(nmax):
+        for j in range(nmax):
+            lab[0, i, j] = cos(arr[i, j])
+            lab[1, i, j] = sin(arr[i, j])
 
     for a in range(3):
         for b in range(3):
             for i in range(nmax):
                 for j in range(nmax):
                     Qab[a, b] += 3 * lab[a, i, j] * lab[b, i, j] - delta[a, b]
+    for i in range(3):
+        for j in range(3):
+            Qab[i, j] /= 2 * nmax * nmax  # Element-wise division, couldn't do it the other way
 
-    Qab = Qab / (2 * nmax * nmax)
     eigenvalues, eigenvectors = np.linalg.eig(Qab)
-
-    return eigenvalues.max()
+    max_eigenvalue = max(eigenvalues)  # No longer a numpy array apparently, need to convert to a list and then find max, not sure if it slows it down
+    return max_eigenvalue
 #=======================================================================
 from libc.stdlib cimport rand
 cdef extern from "stdlib.h":
